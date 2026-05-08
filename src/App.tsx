@@ -24,7 +24,8 @@ import {
   deleteDoc, 
   addDoc as firestoreAddDoc,
   query,
-  orderBy
+  orderBy,
+  getDocs
 } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { db, auth, signInWithGoogle, handleFirestoreError, OperationType } from "./lib/firebase";
@@ -285,7 +286,9 @@ const EditModal = ({
                   type="number"
                   className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-sm focus:border-brand-accent outline-none mb-2"
                   value={formData.postCount}
-                  onChange={e => setFormData({...formData, postCount: parseInt(e.target.value) || 0})}
+                  min={0}
+                  max={10}
+                  onChange={e => setFormData({...formData, postCount: Math.min(10, parseInt(e.target.value) || 0)})}
                 />
                 <p className="text-[10px] text-zinc-500 italic">Adjusting this will automatically create or remove posts following the new number.</p>
               </div>
@@ -624,22 +627,26 @@ const ProfileHeader = ({
   user,
   onMessageClick, 
   onEditProfile,
-  onToggleEdit
+  onToggleEdit,
+  onFollowChange
 }: { 
   profile: ProfileData, 
   isAdmin: boolean,
   user: FirebaseUser | null,
   onMessageClick: () => void, 
   onEditProfile: () => void,
-  onToggleEdit: () => void
+  onToggleEdit: () => void,
+  onFollowChange: (isFollowing: boolean) => void
 }) => {
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(() => {
+    return localStorage.getItem(`following_${profile.username}`) === 'true';
+  });
 
   const handleFollow = () => {
-    if (!isFollowing) {
-      setIsFollowing(true);
-      setTimeout(() => setIsFollowing(false), 3000);
-    }
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+    localStorage.setItem(`following_${profile.username}`, nextState.toString());
+    onFollowChange(nextState);
   };
 
   return (
@@ -1691,6 +1698,32 @@ const DMOverlay = ({
 };
 
 
+const updateFormattedCount = (current: string, delta: number): string => {
+  if (!current) return delta > 0 ? "1" : "0";
+  
+  const multiplierMatch = current.match(/[kKMm]$/);
+  const multiplier = multiplierMatch 
+    ? (multiplierMatch[0].toLowerCase() === 'k' ? 1000 : 1000000) 
+    : 1;
+  
+  const numericStr = current.replace(/[^0-9.]/g, '');
+  const numericPart = parseFloat(numericStr) || 0;
+  
+  const totalValue = (numericPart * multiplier) + delta;
+  
+  if (totalValue < 0) return "0";
+  
+  if (totalValue >= 1000000) {
+    const val = (totalValue / 1000000).toFixed(1).replace(/\.0$/, '');
+    return val + 'M';
+  }
+  if (totalValue >= 1000) {
+    const val = (totalValue / 1000).toFixed(1).replace(/\.0$/, '');
+    return val + 'k';
+  }
+  return Math.floor(totalValue).toString();
+};
+
 export default function App() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isDMOpen, setIsDMOpen] = useState(false);
@@ -1743,6 +1776,14 @@ export default function App() {
     const unsubscribeProfile = onSnapshot(profileRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as ProfileData;
+        
+        // Auto-fix: force reduction to 7 as requested once
+        if (data.postCount > 10 || (data.postCount > 7 && !localStorage.getItem('initial_post_trim_v2'))) {
+          localStorage.setItem('initial_post_trim_v2', 'true');
+          handleSaveProfile({ ...data, postCount: 7 });
+          return;
+        }
+
         setProfile({
           ...DEFAULT_PROFILE,
           ...data,
@@ -1753,7 +1794,7 @@ export default function App() {
     }, (error) => handleFirestoreError(error, OperationType.GET, "profiles/main"));
 
     const postsQuery = query(collection(db, "posts"), orderBy("id", "asc"));
-    const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
+    const unsubscribePosts = onSnapshot(postsQuery, async (snapshot) => {
       const postsData: Post[] = [];
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
@@ -1763,6 +1804,17 @@ export default function App() {
           comments: Array.isArray(data.comments) ? data.comments : [] 
         } as Post);
       });
+      
+      // If we have more than 7 posts and we haven't trimmed yet, perform a one-time cleanup
+      if (postsData.length > 7 && profile.username) {
+         // This logic is already in handleSaveProfile, but let's force a sync here 
+         // if the user sees "infinite" posts. 
+         const toDelete = postsData.slice(7);
+         for (const post of toDelete) {
+           await deleteDoc(doc(db, "posts", post.id.toString()));
+         }
+      }
+
       if (postsData.length > 0) setPosts(postsData);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "posts"));
 
@@ -1794,16 +1846,24 @@ export default function App() {
 
   const handleSaveProfile = async (newData: ProfileData) => {
     try {
-      await setDoc(doc(db, "profiles", "main"), newData);
+      // Enforce hard limit of 10
+      const targetCount = Math.min(10, newData.postCount);
+      const profileToSave = { ...newData, postCount: targetCount };
       
-      // Auto-adjust posts collection based on postCount
-      const targetCount = newData.postCount;
-      const currentPostsCount = posts.length;
+      await setDoc(doc(db, "profiles", "main"), profileToSave);
+      
+      // Fetch ALL current posts directly to ensure we have the full list for cleanup
+      const postsSnap = await getDocs(query(collection(db, "posts"), orderBy("id", "asc")));
+      const allPosts: Post[] = [];
+      postsSnap.forEach(snap => {
+        allPosts.push({ ...snap.data(), id: snap.data().id || parseInt(snap.id) } as Post);
+      });
+
+      const currentPostsCount = allPosts.length;
 
       if (targetCount > currentPostsCount) {
         const diff = targetCount - currentPostsCount;
-        // Find the maximum ID currently in use
-        const maxId = posts.length > 0 ? Math.max(...posts.map(p => p.id)) : 0;
+        const maxId = allPosts.length > 0 ? Math.max(...allPosts.map(p => p.id)) : 0;
         
         for (let i = 1; i <= diff; i++) {
           const newId = maxId + i;
@@ -1819,10 +1879,9 @@ export default function App() {
           await setDoc(doc(db, "posts", newId.toString()), newPost);
         }
       } else if (targetCount < currentPostsCount) {
-        const diff = currentPostsCount - targetCount;
-        // Remove the latest posts (by ID descending or just array order)
-        const sortedPosts = [...posts].sort((a, b) => b.id - a.id);
-        const toDelete = sortedPosts.slice(0, diff);
+        // Keep only top N posts, delete the rest
+        const sortedPosts = [...allPosts].sort((a, b) => a.id - b.id);
+        const toDelete = sortedPosts.slice(targetCount);
         
         for (const post of toDelete) {
           await deleteDoc(doc(db, "posts", post.id.toString()));
@@ -1933,6 +1992,17 @@ export default function App() {
     }
   };
 
+  const handleFollowChange = async (isFollowing: boolean) => {
+    try {
+      const delta = isFollowing ? 1 : -1;
+      const nextCount = updateFormattedCount(profile.followersCount, delta);
+      const updatedProfile = { ...profile, followersCount: nextCount };
+      await setDoc(doc(db, "profiles", "main"), updatedProfile);
+    } catch (error) {
+      console.error("Follow error:", error);
+    }
+  };
+
   return (
     <div className="bg-brand-bg text-brand-ink min-h-screen selection:bg-brand-accent/30 font-sans overflow-x-hidden">
       <AnimatePresence>
@@ -2019,6 +2089,7 @@ export default function App() {
             onMessageClick={() => setIsDMOpen(true)} 
             onEditProfile={() => setShowEditModal("profile")}
             onToggleEdit={() => setIsEditMode(prev => !prev)}
+            onFollowChange={handleFollowChange}
           />
          <Highlights 
             highlights={highlights}

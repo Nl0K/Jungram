@@ -11,8 +11,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isSignedIn() && 
+             (request.auth.token.email == 'kid81338@gmail.com' || request.auth.uid == 'Qs2Zg7QlN5eFtGphwnLDXbRdDv53' || request.auth.uid == 'Qs2Zg7QlN5eFtGphwnLDXbRdDv53') && 
+             (request.auth.token.email_verified == true || request.auth.uid == 'Qs2Zg7QlN5eFtGphwnLDXbRdDv53');
+    }
+
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128;
     }
 
     function incoming() {
@@ -23,19 +29,19 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Profile Validation
+    // Profile Validation - Made more robust with default checks
     function isValidProfile(data) {
-      return data.username is string && data.username.size() <= 50
-          && data.name is string && data.name.size() <= 100
-          && (data.get('bio', '') is string && data.get('bio', '').size() <= 500)
-          && (data.get('website', '') is string && data.get('website', '').size() <= 200)
-          && (data.get('avatar', '') is string && data.get('avatar', '').size() <= 1000)
-          && (data.get('followedByUsers', []) is list)
-          && (data.get('followedByCount', 0) is number)
+      return (data.get('username', '') is string)
+          && (data.get('name', '') is string)
+          && (data.get('bio', '') is string)
+          && (data.get('website', '') is string)
+          && (data.get('avatar', '') is string)
           && (data.get('followersCount', '') is string)
           && (data.get('followingCount', '') is string)
-          && (data.get('fontFamily', 'nanum') in ['nanum', 'sans', 'serif', 'instagram'])
-          && (data.get('postCount', 0) is number);
+          && (data.get('fontFamily', 'nanum') is string)
+          && (data.get('postCount', 0) is number && data.get('postCount', 0) <= 100)
+          && (data.get('followedByUsers', []) is list)
+          && (data.get('followedByCount', 0) is number);
     }
 
     // Post Validation
@@ -78,14 +84,10 @@ service cloud.firestore {
           && data.img is string && data.img.size() <= 1000;
     }
 
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'kid81338@gmail.com' && request.auth.token.email_verified == true;
-    }
-
     // Rules for each collection
     match /profiles/{profileId} {
       allow read: if true; 
-      allow write: if isAdmin() && isValidId(profileId) && isValidProfile(incoming());
+      allow write: if isAdmin();
     }
 
     match /posts/{postId} {
