@@ -203,6 +203,16 @@ const EditModal = ({
 }) => {
   const [formData, setFormData] = useState(data);
 
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
   const getTitle = () => {
     switch(type) {
       case "profile": return "프로필 편집";
@@ -894,6 +904,16 @@ const PostModal = ({
   const [captionCommentsCount, setCaptionCommentsCount] = useState(post.commentsCount || 0);
 
   useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  useEffect(() => {
     setComments(Array.isArray(post.comments) ? post.comments : []);
     setCaptionText(post.caption);
     setCaptionTime(post.time);
@@ -1221,6 +1241,16 @@ const DMOverlay = ({
   const [senderType, setSenderType] = useState<'me' | 'them'>('me');
 
   const selectedUser = chats.find(u => u.id === selectedUserId) || chats[0];
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   const handleUpdateChat = async (updatedChat: ChatUser) => {
     try {
