@@ -1719,6 +1719,11 @@ const updateFormattedCount = (current: string, delta: number): string => {
   const totalValue = (numericPart * multiplier) + delta;
   
   if (totalValue < 0) return "0";
+
+  // If there was no k or m multiplier, just use comma formatting
+  if (!multiplierMatch) {
+    return Math.floor(totalValue).toLocaleString('en-US');
+  }
   
   if (totalValue >= 1000000) {
     const val = (totalValue / 1000000).toFixed(1).replace(/\.0$/, '');
