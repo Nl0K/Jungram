@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Profile Validation
+    function isValidProfile(data) {
+      return data.username is string && data.username.size() <= 50
+          && data.name is string && data.name.size() <= 100
+          && (data.get('bio', '') is string && data.get('bio', '').size() <= 500)
+          && (data.get('website', '') is string && data.get('website', '').size() <= 200)
+          && (data.get('avatar', '') is string && data.get('avatar', '').size() <= 1000)
+          && (data.get('followedByUsers', []) is list)
+          && (data.get('followedByCount', 0) is number);
+    }
+
+    // Post Validation
+    function isValidPost(data) {
+      return data.img is string && data.img.size() <= 1000
+          && data.likes is number
+          && data.caption is string && data.caption.size() <= 2000
+          && (data.get('time', '') is string && data.get('time', '').size() <= 100)
+          && (data.get('commentsCount', 0) is number);
+    }
+
+    // Comment Validation
+    function isValidComment(data) {
+      return data.user is string && data.user.size() <= 50
+          && (data.get('avatar', '') is string && data.get('avatar', '').size() <= 1000)
+          && data.text is string && data.text.size() <= 1000
+          && (data.get('time', '') is string && data.get('time', '').size() <= 100)
+          && (data.get('likes', 0) is number);
+    }
+
+    // Chat Validation
+    function isValidChat(data) {
+      return data.name is string && data.name.size() <= 100
+          && (data.get('avatar', '') is string && data.get('avatar', '').size() <= 1000)
+          && (data.get('status', '') is string && data.get('status', '').size() <= 100)
+          && (data.get('subtitle', '') is string && data.get('subtitle', '').size() <= 100)
+          && (data.get('isOnline', false) is bool);
+    }
+
+    // Message Validation
+    function isValidMessage(data) {
+      return data.sender is string && (data.sender == 'me' || data.sender == 'them')
+          && data.text is string && data.text.size() <= 5000
+          && (data.get('time', '') is string && data.get('time', '').size() <= 100);
+    }
+
+    // Highlight Validation
+    function isValidHighlight(data) {
+      return data.title is string && data.title.size() <= 50
+          && data.img is string && data.img.size() <= 1000;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'kid81338@gmail.com' && request.auth.token.email_verified == true;
+    }
+
+    // Rules for each collection
+    match /profiles/{profileId} {
+      allow read: if true; 
+      allow write: if isAdmin() && isValidId(profileId) && isValidProfile(incoming());
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(postId) && isValidPost(incoming());
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow write: if isAdmin() && isValidId(commentId) && isValidComment(incoming());
+      }
+    }
+
+    match /chats/{chatId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(chatId) && isValidChat(incoming());
+
+      match /messages/{messageId} {
+        allow read: if true;
+        allow write: if isAdmin() && isValidId(messageId) && isValidMessage(incoming());
+      }
+    }
+
+    match /highlights/{highlightId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(highlightId) && isValidHighlight(incoming());
+    }
+  }
+}

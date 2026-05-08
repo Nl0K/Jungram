@@ -15,6 +15,19 @@ import {
   ChevronLeft,
   BadgeCheck
 } from "lucide-react";
+import { 
+  onSnapshot, 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc as firestoreAddDoc,
+  query,
+  orderBy
+} from "firebase/firestore";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { db, auth, signInWithGoogle, handleFirestoreError, OperationType } from "./lib/firebase";
 import React, { useState, useEffect } from "react";
 
 // Types
@@ -536,12 +549,14 @@ const Highlights = ({
 const ProfileHeader = ({ 
   profile, 
   isAdmin,
+  user,
   onMessageClick, 
   onEditProfile,
   onToggleEdit
 }: { 
   profile: ProfileData, 
   isAdmin: boolean,
+  user: FirebaseUser | null,
   onMessageClick: () => void, 
   onEditProfile: () => void,
   onToggleEdit: () => void
@@ -579,7 +594,12 @@ const ProfileHeader = ({
           <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
             <h1 
               onClick={(e) => {
-                if (e.detail === 5) onToggleEdit();
+                if (e.detail === 5) {
+                  if (!user) {
+                    signInWithGoogle().catch(console.error);
+                  }
+                  onToggleEdit();
+                }
               }}
               className="text-xl md:text-2xl font-light tracking-tight flex items-center gap-1.5 cursor-pointer select-none"
             >
@@ -1129,74 +1149,86 @@ const DMOverlay = ({
 
   const selectedUser = chats.find(u => u.id === selectedUserId) || chats[0];
 
-  const handleUpdateChat = (updatedChat: ChatUser) => {
-    setChats(prev => prev.map(c => c.id === updatedChat.id ? updatedChat : c));
-    setEditingChatId(null);
+  const handleUpdateChat = async (updatedChat: ChatUser) => {
+    try {
+      await setDoc(doc(db, "chats", updatedChat.id.toString()), updatedChat);
+      setEditingChatId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `chats/${updatedChat.id}`);
+    }
   };
 
-  const handleUpdateMessage = (updatedMessage: ChatMessage) => {
-    setChats(prev => prev.map(c => {
-      if (c.id === selectedUserId) {
-        return {
-          ...c,
-          messages: c.messages.map(m => m.id === updatedMessage.id ? updatedMessage : m)
-        };
-      }
-      return c;
-    }));
-    setEditingMessageId(null);
+  const handleUpdateMessage = async (updatedMessage: ChatMessage) => {
+    if (!selectedUser) return;
+    try {
+      const updatedChat = {
+        ...selectedUser,
+        messages: selectedUser.messages.map(m => m.id === updatedMessage.id ? updatedMessage : m)
+      };
+      await setDoc(doc(db, "chats", selectedUserId.toString()), updatedChat);
+      setEditingMessageId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `chats/${selectedUserId}`);
+    }
   };
 
-  const handleDeleteMessage = (msgId: number) => {
-    setChats(prev => prev.map(c => {
-      if (c.id === selectedUserId) {
-        return {
-          ...c,
-          messages: c.messages.filter(m => m.id !== msgId)
-        };
-      }
-      return c;
-    }));
+  const handleDeleteMessage = async (msgId: number) => {
+    if (!selectedUser) return;
+    try {
+      const updatedChat = {
+        ...selectedUser,
+        messages: selectedUser.messages.filter(m => m.id !== msgId)
+      };
+      await setDoc(doc(db, "chats", selectedUserId.toString()), updatedChat);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `chats/${selectedUserId}`);
+    }
   };
 
-  const handleForwardMessage = (targetUserId: number) => {
+  const handleForwardMessage = async (targetUserId: number) => {
     if (!forwardingMessage) return;
+    const targetChat = chats.find(c => c.id === targetUserId);
+    if (!targetChat) return;
     
-    setChats(prev => prev.map(c => {
-      if (c.id === targetUserId) {
-        return {
-          ...c,
-          messages: [...c.messages, {
-            ...forwardingMessage,
-            id: Date.now(),
-            sender: 'me', // Always sent as 'me' when forwarded
-            time: "방금"
-          }]
-        };
-      }
-      return c;
-    }));
-    setForwardingMessage(null);
+    try {
+      const updatedChat = {
+        ...targetChat,
+        messages: [...targetChat.messages, {
+          ...forwardingMessage,
+          id: Date.now(),
+          sender: 'me' as const,
+          time: "방금"
+        }]
+      };
+      await setDoc(doc(db, "chats", targetUserId.toString()), updatedChat);
+      setForwardingMessage(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `chats/${targetUserId}`);
+    }
   };
 
-  const handleSendMessage = () => {
-    if (!newMessageText.trim()) return;
+  const handleSendMessage = async () => {
+    if (!newMessageText.trim() || !selectedUser) return;
     const newMessage: ChatMessage = {
       id: Date.now(),
       sender: senderType,
       text: newMessageText,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    setChats(prev => prev.map(c => {
-      if (c.id === selectedUserId) {
-        return { ...c, messages: [...c.messages, newMessage] };
-      }
-      return c;
-    }));
-    setNewMessageText("");
+    
+    try {
+      const updatedChat = {
+        ...selectedUser,
+        messages: [...selectedUser.messages, newMessage]
+      };
+      await setDoc(doc(db, "chats", selectedUserId.toString()), updatedChat);
+      setNewMessageText("");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `chats/${selectedUserId}`);
+    }
   };
 
-  const handleAddChat = () => {
+  const handleAddChat = async () => {
     const newChat: ChatUser = {
       id: Date.now(),
       name: "New Partner",
@@ -1206,16 +1238,24 @@ const DMOverlay = ({
       isOnline: true,
       messages: [{ id: 1, sender: 'them', text: "Hello!", time: "Just now" }]
     };
-    setChats(prev => [...prev, newChat]);
-    setSelectedUserId(newChat.id);
+    try {
+      await setDoc(doc(db, "chats", newChat.id.toString()), newChat);
+      setSelectedUserId(newChat.id);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `chats/${newChat.id}`);
+    }
   };
 
-  const handleDeleteChat = (id: number) => {
+  const handleDeleteChat = async (id: number) => {
     if (chats.length <= 1) return;
-    const nextChats = chats.filter(c => c.id !== id);
-    setChats(nextChats);
-    if (selectedUserId === id) {
-      setSelectedUserId(nextChats[0].id);
+    try {
+      await deleteDoc(doc(db, "chats", id.toString()));
+      if (selectedUserId === id) {
+        const nextChats = chats.filter(c => c.id !== id);
+        setSelectedUserId(nextChats[0].id);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `chats/${id}`);
     }
   };
 
@@ -1553,93 +1593,125 @@ export default function App() {
   const [isDMOpen, setIsDMOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState<"profile" | "posts" | "highlights" | "comments" | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
 
   // Hidden Dev Mode Toggle: Alt + Shift + E
   useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.shiftKey && e.key === 'E') {
         setIsEditMode(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      unsubscribeAuth();
+    };
   }, []);
 
-  const isAdmin = isEditMode;
+  const isAdmin = isEditMode || (user?.email === 'kid81338@gmail.com');
 
-  // Persistent States
-  const [profile, setProfile] = useState<ProfileData>(() => {
-    const saved = localStorage.getItem("studio_profile");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        ...DEFAULT_PROFILE,
-        ...parsed,
-        followedByUsers: parsed.followedByUsers || DEFAULT_PROFILE.followedByUsers,
-        followedByCount: typeof parsed.followedByCount === 'number' ? parsed.followedByCount : DEFAULT_PROFILE.followedByCount
-      };
-    }
-    return DEFAULT_PROFILE;
-  });
+  // Firebase Real-time listeners
+  const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
+  const [posts, setPosts] = useState<Post[]>(DEFAULT_POSTS);
+  const [chats, setChats] = useState<ChatUser[]>(DEFAULT_CHATS);
+  const [highlights, setHighlights] = useState<Highlight[]>(DEFAULT_HIGHLIGHTS);
 
-  const [posts, setPosts] = useState<Post[]>(() => {
-    const saved = localStorage.getItem("studio_posts");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Data Migration: Ensure every post has required fields with varied defaults
-        return parsed.map((p: any, idx: number) => ({
-          ...p,
-          time: p.time || (idx === 0 ? "4시간 전" : idx === 1 ? "어제" : `${idx + 1}일 전`),
-          commentsCount: Array.isArray(p.comments) ? p.comments.length : (typeof p.comments === 'number' ? p.comments : 0),
-          comments: Array.isArray(p.comments) ? p.comments.map((c: any, cIdx: number) => ({
-            ...c,
-            time: c.time || (cIdx === 0 ? "2시간 전" : "12시간 전")
-          })) : []
-        }));
-      } catch (e) {
-        console.error("Error parsing posts from local storage", e);
-        return DEFAULT_POSTS;
+  useEffect(() => {
+    const profileRef = doc(db, "profiles", "main");
+    const unsubscribeProfile = onSnapshot(profileRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as ProfileData;
+        setProfile({
+          ...DEFAULT_PROFILE,
+          ...data,
+          followedByUsers: data.followedByUsers || DEFAULT_PROFILE.followedByUsers,
+          followedByCount: typeof data.followedByCount === 'number' ? data.followedByCount : DEFAULT_PROFILE.followedByCount
+        });
       }
-    }
-    return DEFAULT_POSTS;
-  });
+    }, (error) => handleFirestoreError(error, OperationType.GET, "profiles/main"));
 
-  const [chats, setChats] = useState<ChatUser[]>(() => {
-    const saved = localStorage.getItem("studio_chats");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Error parsing chats", e);
-        return DEFAULT_CHATS;
+    const postsQuery = query(collection(db, "posts"), orderBy("id", "asc"));
+    const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
+      const postsData: Post[] = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        postsData.push({ 
+          ...data, 
+          id: data.id || parseInt(docSnap.id),
+          comments: Array.isArray(data.comments) ? data.comments : [] 
+        } as Post);
+      });
+      if (postsData.length > 0) setPosts(postsData);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "posts"));
+
+    const highlightsQuery = query(collection(db, "highlights"), orderBy("id", "asc"));
+    const unsubscribeHighlights = onSnapshot(highlightsQuery, (snapshot) => {
+      const hData: Highlight[] = [];
+      snapshot.forEach(docSnap => {
+        hData.push({ ...docSnap.data(), id: parseInt(docSnap.id) } as Highlight);
+      });
+      if (hData.length > 0) setHighlights(hData);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "highlights"));
+
+    const chatsQuery = query(collection(db, "chats"), orderBy("id", "asc"));
+    const unsubscribeChats = onSnapshot(chatsQuery, (snapshot) => {
+      const cData: ChatUser[] = [];
+      snapshot.forEach(docSnap => {
+        cData.push({ ...docSnap.data(), id: parseInt(docSnap.id) } as ChatUser);
+      });
+      if (cData.length > 0) setChats(cData);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "chats"));
+
+    return () => {
+      unsubscribeProfile();
+      unsubscribePosts();
+      unsubscribeHighlights();
+      unsubscribeChats();
+    };
+  }, []);
+
+  const handleSaveProfile = async (newData: ProfileData) => {
+    try {
+      await setDoc(doc(db, "profiles", "main"), newData);
+      setShowEditModal(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "profiles/main");
+    }
+  };
+
+  const handleSavePosts = async (newPosts: Post[]) => {
+    try {
+      for (const post of newPosts) {
+        await setDoc(doc(db, "posts", post.id.toString()), post);
       }
+      setPosts(newPosts);
+      setShowEditModal(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "posts");
     }
-    return DEFAULT_CHATS;
-  });
+  };
 
-  const [highlights, setHighlights] = useState<Highlight[]>(() => {
-    const saved = localStorage.getItem("studio_highlights");
-    return saved ? JSON.parse(saved) : DEFAULT_HIGHLIGHTS;
-  });
+  const handleSaveHighlights = async (newHighlights: Highlight[]) => {
+    try {
+      for (const h of newHighlights) {
+        await setDoc(doc(db, "highlights", h.id.toString()), h);
+      }
+      setHighlights(newHighlights);
+      setShowEditModal(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "highlights");
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem("studio_profile", JSON.stringify(profile));
-  }, [profile]);
+  const handleAddComment = async (postId: number, text: string) => {
+    const postToUpdate = posts.find(p => p.id === postId);
+    if (!postToUpdate) return;
 
-  useEffect(() => {
-    localStorage.setItem("studio_posts", JSON.stringify(posts));
-  }, [posts]);
-
-  useEffect(() => {
-    localStorage.setItem("studio_chats", JSON.stringify(chats));
-  }, [chats]);
-
-  useEffect(() => {
-    localStorage.setItem("studio_highlights", JSON.stringify(highlights));
-  }, [highlights]);
-
-  const handleAddComment = (postId: number, text: string) => {
     const newComment: Comment = {
       id: Date.now(),
       user: profile.username || "visitor",
@@ -1650,80 +1722,64 @@ export default function App() {
       isLiked: false
     };
 
-    const newPosts = posts.map(p => {
-      if (p.id === postId) {
-        return {
-          ...p,
-          comments: [...p.comments, newComment],
-          commentsCount: (p.commentsCount || 0) + 1
-        };
-      }
-      return p;
-    });
-
-    setPosts(newPosts);
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost({
-        ...selectedPost,
-        comments: [...selectedPost.comments, newComment],
-        commentsCount: (selectedPost.commentsCount || 0) + 1
-      });
+    try {
+      const updatedPost = {
+        ...postToUpdate,
+        comments: [...(postToUpdate.comments || []), newComment],
+        commentsCount: (postToUpdate.commentsCount || 0) + 1
+      };
+      await setDoc(doc(db, "posts", postId.toString()), updatedPost);
+      if (selectedPost?.id === postId) setSelectedPost(updatedPost);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `posts/${postId}`);
     }
   };
 
-  const handleUpdateComment = (postId: number, commentId: number, text: string, time: string, likes: number) => {
-    const newPosts = posts.map(p => {
-      if (p.id === postId) {
-        return {
-          ...p,
-          comments: p.comments.map(c => 
-            c.id === commentId ? { ...c, text: text, time: time, likes: likes } : c
-          )
-        };
-      }
-      return p;
-    });
+  const handleUpdateComment = async (postId: number, commentId: number, text: string, time: string, likes: number) => {
+    const postToUpdate = posts.find(p => p.id === postId);
+    if (!postToUpdate) return;
 
-    setPosts(newPosts);
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost({
-        ...selectedPost,
-        comments: selectedPost.comments.map(c => 
-          c.id === commentId ? { ...c, text: text, time: time, likes: likes } : c
+    try {
+      const updatedPost = {
+        ...postToUpdate,
+        comments: (postToUpdate.comments || []).map(c => 
+          c.id === commentId ? { ...c, text, time, likes } : c
         )
-      });
+      };
+      await setDoc(doc(db, "posts", postId.toString()), updatedPost);
+      if (selectedPost?.id === postId) setSelectedPost(updatedPost);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `posts/${postId}`);
     }
   };
 
-  const handleDeleteComment = (postId: number, commentId: number) => {
-    const newPosts = posts.map(p => {
-      if (p.id === postId) {
-        return {
-          ...p,
-          comments: p.comments.filter(c => c.id !== commentId),
-          commentsCount: Math.max(0, (p.commentsCount || 0) - 1)
-        };
-      }
-      return p;
-    });
+  const handleDeleteComment = async (postId: number, commentId: number) => {
+    const postToUpdate = posts.find(p => p.id === postId);
+    if (!postToUpdate) return;
 
-    setPosts(newPosts);
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost({
-        ...selectedPost,
-        comments: selectedPost.comments.filter(c => c.id !== commentId),
-        commentsCount: Math.max(0, (selectedPost.commentsCount || 0) - 1)
-      });
+    try {
+      const updatedPost = {
+        ...postToUpdate,
+        comments: (postToUpdate.comments || []).filter(c => c.id !== commentId),
+        commentsCount: Math.max(0, (postToUpdate.commentsCount || 0) - 1)
+      };
+      await setDoc(doc(db, "posts", postId.toString()), updatedPost);
+      if (selectedPost?.id === postId) setSelectedPost(updatedPost);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `posts/${postId}`);
     }
   };
 
-  const handleUpdateCaption = (postId: number, text: string, time: string, likes: number) => {
-    const newPosts = posts.map(p => 
-      p.id === postId ? { ...p, caption: text, time: time, likes: likes } : p
-    );
-    setPosts(newPosts);
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost({ ...selectedPost, caption: text, time: time, likes: likes });
+  const handleUpdateCaption = async (postId: number, text: string, time: string, likes: number) => {
+    const postToUpdate = posts.find(p => p.id === postId);
+    if (!postToUpdate) return;
+
+    try {
+      const updatedPost = { ...postToUpdate, caption: text, time, likes };
+      await setDoc(doc(db, "posts", postId.toString()), updatedPost);
+      if (selectedPost?.id === postId) setSelectedPost(updatedPost);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `posts/${postId}`);
     }
   };
 
@@ -1773,16 +1829,17 @@ export default function App() {
                     ? highlights
                     : selectedPost?.comments || []
             }
-            onSave={(newData) => {
-              if (showEditModal === "profile") setProfile(newData);
-              else if (showEditModal === "posts") setPosts(newData);
-              else if (showEditModal === "highlights") setHighlights(newData);
-              else if (showEditModal === "comments" && selectedPost) {
-                const newPosts = posts.map(p => 
-                  p.id === selectedPost.id ? { ...p, comments: newData, commentsCount: newData.length } : p
-                );
-                setPosts(newPosts);
-                setSelectedPost({ ...selectedPost, comments: newData, commentsCount: newData.length });
+            onSave={async (newData) => {
+              if (showEditModal === "profile") {
+                await handleSaveProfile(newData);
+              } else if (showEditModal === "posts") {
+                await handleSavePosts(newData);
+              } else if (showEditModal === "highlights") {
+                await handleSaveHighlights(newData);
+              } else if (showEditModal === "comments" && selectedPost) {
+                const updatedPost = { ...selectedPost, comments: newData, commentsCount: newData.length };
+                await setDoc(doc(db, "posts", selectedPost.id.toString()), updatedPost);
+                setSelectedPost(updatedPost);
               }
               setShowEditModal(null);
             }}
@@ -1808,6 +1865,7 @@ export default function App() {
          <ProfileHeader 
             profile={profile} 
             isAdmin={isAdmin}
+            user={user}
             onMessageClick={() => setIsDMOpen(true)} 
             onEditProfile={() => setShowEditModal("profile")}
             onToggleEdit={() => setIsEditMode(prev => !prev)}
