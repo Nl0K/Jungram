@@ -13,6 +13,7 @@ import {
   Smile,
   X,
   ChevronLeft,
+  ChevronUp,
   BadgeCheck
 } from "lucide-react";
 import { 
@@ -29,7 +30,7 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { db, auth, signInWithGoogle, handleFirestoreError, OperationType } from "./lib/firebase";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 // Types
 interface ChatMessage {
@@ -287,8 +288,8 @@ const EditModal = ({
                   className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-sm focus:border-brand-accent outline-none mb-2"
                   value={formData.postCount}
                   min={0}
-                  max={10}
-                  onChange={e => setFormData({...formData, postCount: Math.min(10, parseInt(e.target.value) || 0)})}
+                  max={7}
+                  onChange={e => setFormData({...formData, postCount: Math.min(7, parseInt(e.target.value) || 0)})}
                 />
                 <p className="text-[10px] text-zinc-500 italic">Adjusting this will automatically create or remove posts following the new number.</p>
               </div>
@@ -1724,12 +1725,71 @@ const updateFormattedCount = (current: string, delta: number): string => {
   return Math.floor(totalValue).toString();
 };
 
+const LockScreen = ({ onUnlock, isReady }: { onUnlock: () => void, isReady: boolean }) => {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ y: "-100%", opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} 
+      className="fixed inset-0 z-[9999] bg-black bg-cover bg-center flex flex-col items-center justify-between py-16 cursor-pointer"
+      style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1621077699745-0d051fc4ba7a?q=80&w=2564&auto=format&fit=crop")' }}
+      onClick={() => {
+        if (isReady) onUnlock();
+      }}
+    >
+      {/* Dark overlay for better text readability */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      <motion.div 
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
+        className="relative flex flex-col items-center mt-12 text-white z-10 w-full px-6"
+      >
+        <div className="flex items-center space-x-2 text-xl font-medium tracking-wide mb-2 opacity-90 drop-shadow-md">
+          <span>{time.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}</span>
+        </div>
+        <div className="text-8xl font-medium tracking-tighter drop-shadow-lg">
+          {time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </motion.div>
+      
+      <motion.div 
+        initial={{ y: 50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+        className="relative flex flex-col items-center mb-8 text-white z-10"
+      >
+         <motion.div 
+           animate={{ y: [0, -8, 0] }}
+           transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+           className="mb-2"
+         >
+           <ChevronUp className="w-6 h-6 opacity-80" strokeWidth={3} />
+         </motion.div>
+         <span className="text-[13px] font-bold tracking-widest uppercase opacity-90 drop-shadow-md">
+           {isReady ? "위로 쓸어올려서 열기" : "로딩 중..."}
+         </span>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isDMOpen, setIsDMOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState<"profile" | "posts" | "highlights" | "comments" | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [showLockScreen, setShowLockScreen] = useState(true);
 
   // Hidden Dev Mode Toggle: Alt + Shift + E
   useEffect(() => {
@@ -1771,6 +1831,16 @@ export default function App() {
   const [chats, setChats] = useState<ChatUser[]>(DEFAULT_CHATS);
   const [highlights, setHighlights] = useState<Highlight[]>(DEFAULT_HIGHLIGHTS);
 
+  const profileLoadedRef = useRef(false);
+  const postsLoadedRef = useRef(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  const checkInitialization = () => {
+    if (profileLoadedRef.current && postsLoadedRef.current) {
+      setIsInitializing(false);
+    }
+  };
+
   useEffect(() => {
     const profileRef = doc(db, "profiles", "main");
     const unsubscribeProfile = onSnapshot(profileRef, (snapshot) => {
@@ -1791,6 +1861,8 @@ export default function App() {
           followedByCount: typeof data.followedByCount === 'number' ? data.followedByCount : DEFAULT_PROFILE.followedByCount
         });
       }
+      profileLoadedRef.current = true;
+      checkInitialization();
     }, (error) => handleFirestoreError(error, OperationType.GET, "profiles/main"));
 
     const postsQuery = query(collection(db, "posts"), orderBy("id", "asc"));
@@ -1806,16 +1878,19 @@ export default function App() {
       });
       
       // If we have more than 7 posts and we haven't trimmed yet, perform a one-time cleanup
-      if (postsData.length > 7 && profile.username) {
-         // This logic is already in handleSaveProfile, but let's force a sync here 
-         // if the user sees "infinite" posts. 
+      if (postsData.length > 7 && user?.email === 'kid81338@gmail.com') {
          const toDelete = postsData.slice(7);
          for (const post of toDelete) {
-           await deleteDoc(doc(db, "posts", post.id.toString()));
+           await deleteDoc(doc(db, "posts", post.id.toString())).catch(e => console.error("Del err", e));
          }
       }
 
-      if (postsData.length > 0) setPosts(postsData);
+      // Always limit displayed posts to the first 7 on frontend if the delete hasn't kicked in or they are not admin
+      const displayPosts = postsData.slice(0, 7);
+      if (displayPosts.length > 0) setPosts(displayPosts);
+      
+      postsLoadedRef.current = true;
+      checkInitialization();
     }, (error) => handleFirestoreError(error, OperationType.LIST, "posts"));
 
     const highlightsQuery = query(collection(db, "highlights"), orderBy("id", "asc"));
@@ -1846,8 +1921,8 @@ export default function App() {
 
   const handleSaveProfile = async (newData: ProfileData) => {
     try {
-      // Enforce hard limit of 10
-      const targetCount = Math.min(10, newData.postCount);
+      // Enforce hard limit of 7
+      const targetCount = Math.min(7, newData.postCount);
       const profileToSave = { ...newData, postCount: targetCount };
       
       await setDoc(doc(db, "profiles", "main"), profileToSave);
@@ -2003,6 +2078,18 @@ export default function App() {
     }
   };
 
+  // If showLockScreen is true, render the lock screen and hide the main app content
+  if (showLockScreen) {
+    return (
+      <AnimatePresence>
+        <LockScreen key="lock-screen" onUnlock={() => setShowLockScreen(false)} isReady={!isInitializing} />
+      </AnimatePresence>
+    );
+  }
+
+  // The main app is only rendered when lock screen is gone
+  // We don't block render on isInitializing anymore since the lock screen protects it,
+  // making the transition to the main app seamless once unlocked.
   return (
     <div className="bg-brand-bg text-brand-ink min-h-screen selection:bg-brand-accent/30 font-sans overflow-x-hidden">
       <AnimatePresence>

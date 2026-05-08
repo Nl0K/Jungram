@@ -12,9 +12,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && 
-             (request.auth.token.email == 'kid81338@gmail.com' || request.auth.uid == 'Qs2Zg7QlN5eFtGphwnLDXbRdDv53' || request.auth.uid == 'Qs2Zg7QlN5eFtGphwnLDXbRdDv53') && 
-             (request.auth.token.email_verified == true || request.auth.uid == 'Qs2Zg7QlN5eFtGphwnLDXbRdDv53');
+      return isSignedIn() && (request.auth.uid == 'Qs2Zg7QlN5eFtGphwnLDXbRdDv53' || (request.auth.token.email == 'kid81338@gmail.com' && request.auth.token.email_verified == true));
     }
 
     function isValidId(id) {
@@ -87,7 +85,7 @@ service cloud.firestore {
     // Rules for each collection
     match /profiles/{profileId} {
       allow read: if true; 
-      allow write: if isAdmin();
+      allow write: if isAdmin() && isValidId(profileId) && isValidProfile(incoming());
     }
 
     match /posts/{postId} {
