@@ -70,6 +70,7 @@ interface ProfileData {
   bio: string;
   followedByUsers: string[];
   followedByCount: number;
+  postCount: number;
   website: string;
   avatar: string;
 }
@@ -117,6 +118,7 @@ const DEFAULT_PROFILE: ProfileData = {
   bio: "Creative Design Studio & Intelligence\nBlending artistic vision with technical precision.\nSeoul • London • Silicon Valley",
   followedByUsers: ["starpeace_official", "Jun.s_00", "cha.doyn"],
   followedByCount: 42,
+  postCount: 7,
   website: "studiolumina.com",
   avatar: "https://picsum.photos/seed/lumina-logo/400/400"
 };
@@ -262,6 +264,16 @@ const EditModal = ({
                 />
               </div>
               <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Posts Count</label>
+                <input 
+                  type="number"
+                  className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-sm focus:border-brand-accent outline-none mb-2"
+                  value={formData.postCount}
+                  onChange={e => setFormData({...formData, postCount: parseInt(e.target.value) || 0})}
+                />
+                <p className="text-[10px] text-zinc-500 italic">Adjusting this will automatically create or remove posts following the new number.</p>
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Website URL (studiolumina.com)</label>
                 <input 
                   className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-sm focus:border-brand-accent outline-none"
@@ -299,7 +311,7 @@ const EditModal = ({
                   </div>
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Likes Count</label>
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Likes</label>
                       <input 
                         type="number"
                         className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
@@ -312,7 +324,20 @@ const EditModal = ({
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Time (e.g. 4h, 1d)</label>
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Comments</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
+                        value={post.commentsCount}
+                        onChange={e => {
+                          const newPosts = [...formData];
+                          newPosts[idx].commentsCount = parseInt(e.target.value) || 0;
+                          setFormData(newPosts);
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Time</label>
                       <input 
                         className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
                         value={post.time}
@@ -524,10 +549,10 @@ const Highlights = ({
         >
           <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-zinc-800 p-1 group-hover:border-zinc-500 transition-colors flex items-center justify-center">
             <div className="w-full h-full rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-               <div className="text-zinc-600 font-bold text-xs">EDIT</div>
+                <Settings size={18} className="text-zinc-600" />
             </div>
           </div>
-          <span className="text-[11px] font-semibold tracking-tight">Admin</span>
+          <span className="text-[11px] font-semibold tracking-tight">Edit</span>
         </div>
       )}
 
@@ -650,7 +675,7 @@ const ProfileHeader = ({
 
           <div className="flex justify-center md:justify-start gap-8 mb-6 border-y md:border-none border-zinc-800 py-3 md:py-0 w-full">
             <div className="flex flex-col md:flex-row items-center gap-1 text-sm md:text-base">
-              <span className="font-bold">7</span> <span className="text-brand-muted">posts</span>
+              <span className="font-bold">{profile.postCount}</span> <span className="text-brand-muted">posts</span>
             </div>
             <div className="flex flex-col md:flex-row items-center gap-1 text-sm md:text-base">
               <span className="font-bold">7.1k</span> <span className="text-brand-muted">followers</span>
@@ -764,7 +789,7 @@ const PostGrid = ({
                     <Heart size={20} fill="white" /> {post.likes.toLocaleString()}
                   </div>
                   <div className="flex items-center gap-1 font-bold text-white">
-                    <MessageCircle size={20} fill="white" /> {post.comments.length || post.commentsCount}
+                    <MessageCircle size={20} fill="white" /> {post.commentsCount ?? post.comments.length}
                   </div>
                 </div>
               </motion.div>
@@ -816,7 +841,7 @@ const PostModal = ({
   onAddComment: (postId: number, text: string) => void,
   onUpdateComment: (postId: number, commentId: number, text: string, time: string, likes: number) => void,
   onDeleteComment: (postId: number, commentId: number) => void,
-  onUpdateCaption: (postId: number, text: string, time: string, likes: number) => void
+  onUpdateCaption: (postId: number, text: string, time: string, likes: number, commentsCount: number) => void
 }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [comments, setComments] = useState<Comment[]>(Array.isArray(post.comments) ? post.comments : []);
@@ -829,13 +854,15 @@ const PostModal = ({
   const [captionText, setCaptionText] = useState(post.caption);
   const [captionTime, setCaptionTime] = useState(post.time);
   const [captionLikes, setCaptionLikes] = useState(post.likes);
+  const [captionCommentsCount, setCaptionCommentsCount] = useState(post.commentsCount || 0);
 
   useEffect(() => {
     setComments(Array.isArray(post.comments) ? post.comments : []);
     setCaptionText(post.caption);
     setCaptionTime(post.time);
     setCaptionLikes(post.likes);
-  }, [post.comments, post.caption, post.time, post.likes]);
+    setCaptionCommentsCount(post.commentsCount || 0);
+  }, [post.comments, post.caption, post.time, post.likes, post.commentsCount]);
 
   const handlePostComment = () => {
     if (!newCommentText.trim()) return;
@@ -850,7 +877,7 @@ const PostModal = ({
   };
 
   const handleSaveCaption = () => {
-    onUpdateCaption(post.id, captionText, captionTime, captionLikes);
+    onUpdateCaption(post.id, captionText, captionTime, captionLikes, captionCommentsCount);
     setIsEditingCaption(false);
   };
 
@@ -951,11 +978,20 @@ const PostModal = ({
                           />
                        </div>
                        <div className="flex-1">
-                          <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Likes Count</label>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Likes</label>
                           <input 
                             type="number"
                             value={captionLikes}
                             onChange={(e) => setCaptionLikes(parseInt(e.target.value) || 0)}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
+                          />
+                       </div>
+                       <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Comments</label>
+                          <input 
+                            type="number"
+                            value={captionCommentsCount}
+                            onChange={(e) => setCaptionCommentsCount(parseInt(e.target.value) || 0)}
                             className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
                           />
                        </div>
@@ -1678,6 +1714,40 @@ export default function App() {
   const handleSaveProfile = async (newData: ProfileData) => {
     try {
       await setDoc(doc(db, "profiles", "main"), newData);
+      
+      // Auto-adjust posts collection based on postCount
+      const targetCount = newData.postCount;
+      const currentPostsCount = posts.length;
+
+      if (targetCount > currentPostsCount) {
+        const diff = targetCount - currentPostsCount;
+        // Find the maximum ID currently in use
+        const maxId = posts.length > 0 ? Math.max(...posts.map(p => p.id)) : 0;
+        
+        for (let i = 1; i <= diff; i++) {
+          const newId = maxId + i;
+          const newPost: Post = {
+            id: newId,
+            img: `https://picsum.photos/seed/p${newId}/600/600`,
+            likes: Math.floor(Math.random() * 1500) + 100,
+            caption: "새로운 소식입니다.",
+            time: "방금",
+            commentsCount: 0,
+            comments: []
+          };
+          await setDoc(doc(db, "posts", newId.toString()), newPost);
+        }
+      } else if (targetCount < currentPostsCount) {
+        const diff = currentPostsCount - targetCount;
+        // Remove the latest posts (by ID descending or just array order)
+        const sortedPosts = [...posts].sort((a, b) => b.id - a.id);
+        const toDelete = sortedPosts.slice(0, diff);
+        
+        for (const post of toDelete) {
+          await deleteDoc(doc(db, "posts", post.id.toString()));
+        }
+      }
+
       setShowEditModal(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, "profiles/main");
@@ -1725,8 +1795,7 @@ export default function App() {
     try {
       const updatedPost = {
         ...postToUpdate,
-        comments: [...(postToUpdate.comments || []), newComment],
-        commentsCount: (postToUpdate.commentsCount || 0) + 1
+        comments: [...(postToUpdate.comments || []), newComment]
       };
       await setDoc(doc(db, "posts", postId.toString()), updatedPost);
       if (selectedPost?.id === postId) setSelectedPost(updatedPost);
@@ -1770,12 +1839,12 @@ export default function App() {
     }
   };
 
-  const handleUpdateCaption = async (postId: number, text: string, time: string, likes: number) => {
+  const handleUpdateCaption = async (postId: number, text: string, time: string, likes: number, commentsCount: number) => {
     const postToUpdate = posts.find(p => p.id === postId);
     if (!postToUpdate) return;
 
     try {
-      const updatedPost = { ...postToUpdate, caption: text, time, likes };
+      const updatedPost = { ...postToUpdate, caption: text, time, likes, commentsCount };
       await setDoc(doc(db, "posts", postId.toString()), updatedPost);
       if (selectedPost?.id === postId) setSelectedPost(updatedPost);
     } catch (error) {
@@ -1837,7 +1906,7 @@ export default function App() {
               } else if (showEditModal === "highlights") {
                 await handleSaveHighlights(newData);
               } else if (showEditModal === "comments" && selectedPost) {
-                const updatedPost = { ...selectedPost, comments: newData, commentsCount: newData.length };
+                const updatedPost = { ...selectedPost, comments: newData };
                 await setDoc(doc(db, "posts", selectedPost.id.toString()), updatedPost);
                 setSelectedPost(updatedPost);
               }
@@ -1901,7 +1970,6 @@ export default function App() {
       {/* Desktop Footer */}
       <footer className="hidden md:block py-16 border-t border-zinc-900 mt-10">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          {!isAdmin && <p className="mb-8 text-xs text-brand-muted italic tracking-wide">You are viewing this profile as a visitor. Customization is restricted to the owner.</p>}
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-[10px] font-semibold text-brand-muted uppercase tracking-widest mb-10">
             {["Meta", "About", "Blog", "Jobs", "Help", "API", "Privacy", "Terms", "Locations", "Threads"].map(link => (
               <a key={link} href="#" className="hover:underline">{link}</a>

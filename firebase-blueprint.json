@@ -10,6 +10,7 @@
         "bio": { "type": "string" },
         "followedByUsers": { "type": "array", "items": { "type": "string" } },
         "followedByCount": { "type": "number" },
+        "postCount": { "type": "number" },
         "website": { "type": "string" },
         "avatar": { "type": "string" }
       },
