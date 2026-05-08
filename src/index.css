@@ -1,9 +1,10 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/moonspam/NanumBarunGothic@latest/nanumbarungothic.css');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Playfair Display", serif;
+  --font-sans: var(--app-font, "NanumBarunGothic", ui-sans-serif, system-ui, sans-serif);
+  --font-display: var(--app-font, "NanumBarunGothic", sans-serif);
   
   --color-brand-bg: #0A0A0A;
   --color-brand-ink: #FFFFFF;
@@ -12,13 +13,18 @@
 }
 
 @layer base {
+  :root {
+    --app-font: "NanumBarunGothic", ui-sans-serif, system-ui, sans-serif;
+  }
+
   body {
-    @apply bg-brand-bg text-brand-ink font-sans antialiased;
+    @apply bg-brand-bg text-brand-ink antialiased;
+    font-family: var(--app-font);
   }
 }
 
 .text-display {
-  @apply font-display italic font-bold;
+  @apply font-display font-bold;
 }
 
 .glass-panel {

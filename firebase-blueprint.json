@@ -11,6 +11,9 @@
         "followedByUsers": { "type": "array", "items": { "type": "string" } },
         "followedByCount": { "type": "number" },
         "postCount": { "type": "number" },
+        "followersCount": { "type": "string" },
+        "followingCount": { "type": "string" },
+        "fontFamily": { "type": "string", "enum": ["nanum", "sans", "serif", "instagram"] },
         "website": { "type": "string" },
         "avatar": { "type": "string" }
       },

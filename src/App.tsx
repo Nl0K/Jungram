@@ -71,6 +71,9 @@ interface ProfileData {
   followedByUsers: string[];
   followedByCount: number;
   postCount: number;
+  followersCount: string;
+  followingCount: string;
+  fontFamily: 'nanum' | 'sans' | 'serif' | 'instagram';
   website: string;
   avatar: string;
 }
@@ -119,6 +122,9 @@ const DEFAULT_PROFILE: ProfileData = {
   followedByUsers: ["starpeace_official", "Jun.s_00", "cha.doyn"],
   followedByCount: 42,
   postCount: 7,
+  followersCount: "7.1k",
+  followingCount: "450",
+  fontFamily: 'nanum',
   website: "studiolumina.com",
   avatar: "https://picsum.photos/seed/lumina-logo/400/400"
 };
@@ -199,9 +205,9 @@ const EditModal = ({
 
   const getTitle = () => {
     switch(type) {
-      case "profile": return "Edit Profile";
-      case "posts": return "Manage Posts";
-      case "highlights": return "Manage Highlights";
+      case "profile": return "프로필 편집";
+      case "posts": return "게시물 관리";
+      case "highlights": return "하이라이트 관리";
       case "comments": return "Edit Post Comments";
       default: return "Edit";
     }
@@ -280,6 +286,37 @@ const EditModal = ({
                   value={formData.website}
                   onChange={e => setFormData({...formData, website: e.target.value})}
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Followers</label>
+                  <input 
+                    className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-sm focus:border-brand-accent outline-none"
+                    value={formData.followersCount}
+                    onChange={e => setFormData({...formData, followersCount: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Following</label>
+                  <input 
+                    className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-sm focus:border-brand-accent outline-none"
+                    value={formData.followingCount}
+                    onChange={e => setFormData({...formData, followingCount: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">App Font Style</label>
+                <select 
+                  className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-sm focus:border-brand-accent outline-none appearance-none"
+                  value={formData.fontFamily}
+                  onChange={e => setFormData({...formData, fontFamily: e.target.value as any})}
+                >
+                  <option value="nanum">Nanum Barun Gothic (Default)</option>
+                  <option value="instagram">Instagram (System)</option>
+                  <option value="sans">Inter / Sans-Serif</option>
+                  <option value="serif">System Serif</option>
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Avatar URL</label>
@@ -481,13 +518,13 @@ const EditModal = ({
             onClick={() => onSave(formData)}
             className="flex-1 bg-brand-accent py-3 rounded-lg font-bold hover:bg-indigo-500 active:scale-95 transition-all text-sm"
           >
-            Save Changes
+            변경 내용 저장
           </button>
           <button 
             onClick={onClose}
             className="flex-1 bg-zinc-800 py-3 rounded-lg font-bold hover:bg-zinc-700 transition-all text-sm text-zinc-400"
           >
-            Cancel
+            취소
           </button>
         </div>
       </motion.div>
@@ -552,7 +589,7 @@ const Highlights = ({
                 <Settings size={18} className="text-zinc-600" />
             </div>
           </div>
-          <span className="text-[11px] font-semibold tracking-tight">Edit</span>
+          <span className="text-[11px] font-semibold tracking-tight">편집</span>
         </div>
       )}
 
@@ -564,7 +601,7 @@ const Highlights = ({
                <div className="text-2xl text-zinc-600">+</div>
             </div>
           </div>
-          <span className="text-[11px] font-semibold tracking-tight">New</span>
+          <span className="text-[11px] font-semibold tracking-tight">신규</span>
         </div>
       )}
     </div>
@@ -647,7 +684,7 @@ const ProfileHeader = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                   >
-                    {isFollowing ? "Following" : "Follow"}
+                    {isFollowing ? "팔로잉" : "팔로우"}
                   </motion.span>
                 </AnimatePresence>
               </button>
@@ -656,7 +693,7 @@ const ProfileHeader = ({
                 className="px-5 py-1.5 bg-zinc-800 rounded-lg text-sm font-semibold hover:bg-zinc-700 transition-colors"
                 id="profile-message-btn"
               >
-                Message
+                메시지
               </button>
               {isAdmin && (
                 <button 
@@ -664,7 +701,7 @@ const ProfileHeader = ({
                   className="px-5 py-1.5 bg-zinc-800 rounded-lg text-sm font-semibold hover:bg-zinc-700 transition-colors"
                   id="profile-edit-btn"
                 >
-                  Edit Profile
+                  프로필 편집
                 </button>
               )}
               <button className="p-1.5 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors hidden md:block" id="profile-settings-btn">
@@ -675,13 +712,13 @@ const ProfileHeader = ({
 
           <div className="flex justify-center md:justify-start gap-8 mb-6 border-y md:border-none border-zinc-800 py-3 md:py-0 w-full">
             <div className="flex flex-col md:flex-row items-center gap-1 text-sm md:text-base">
-              <span className="font-bold">{profile.postCount}</span> <span className="text-brand-muted">posts</span>
+              <span className="font-bold">{profile.postCount}</span> <span className="text-brand-muted">게시물</span>
             </div>
             <div className="flex flex-col md:flex-row items-center gap-1 text-sm md:text-base">
-              <span className="font-bold">7.1k</span> <span className="text-brand-muted">followers</span>
+              <span className="font-bold">{profile.followersCount}</span> <span className="text-brand-muted">팔로워</span>
             </div>
             <div className="flex flex-col md:flex-row items-center gap-1 text-sm md:text-base">
-              <span className="font-bold">428</span> <span className="text-brand-muted">following</span>
+              <span className="font-bold">{profile.followingCount}</span> <span className="text-brand-muted">팔로잉</span>
             </div>
           </div>
 
@@ -728,9 +765,9 @@ const PostGrid = ({
   const [activeTab, setActiveTab] = useState("POSTS");
 
   const tabs = [
-    { id: "POSTS", icon: Grid, label: "POSTS" },
-    { id: "SAVED", icon: Bookmark, label: "SAVED" },
-    { id: "TAGGED", icon: UserSquare, label: "TAGGED" }
+    { id: "POSTS", icon: Grid, label: "게시물" },
+    { id: "SAVED", icon: Bookmark, label: "저장됨" },
+    { id: "TAGGED", icon: UserSquare, label: "태그됨" }
   ];
 
   return (
@@ -755,7 +792,7 @@ const PostGrid = ({
             onClick={onManagePosts}
             className="hidden md:flex items-center gap-2 py-4 text-[10px] font-bold text-brand-accent hover:text-white transition-colors tracking-widest uppercase"
           >
-            Manage Photos
+            게시물 관리
           </button>
         )}
       </div>
@@ -807,12 +844,12 @@ const PostGrid = ({
               {activeTab === "SAVED" ? <Bookmark size={32} className="text-zinc-400" /> : <UserSquare size={32} className="text-zinc-400" />}
             </div>
             <h3 className="text-2xl md:text-3xl font-bold mb-2">
-              {activeTab === "SAVED" ? "Save" : "Photos of you"}
+              {activeTab === "SAVED" ? "저장됨" : "회원님이 태그된 사진"}
             </h3>
             <p className="text-brand-muted max-w-xs text-sm">
               {activeTab === "SAVED" 
-                ? "Save photos and videos that you want to see again. No one is notified, and only you can see what you've saved." 
-                : "When people tag you in photos, they'll appear here."}
+                ? "다시 보고 싶은 사진과 동영상을 저장하세요. 콘텐츠를 저장해도 상대방에게 알림이 가지 않으며, 저장된 콘텐츠는 회원님만 볼 수 있습니다." 
+                : "회원님이 태그된 사진이나 동영상이 여기에 표시됩니다."}
             </p>
           </motion.div>
         )}
@@ -938,7 +975,7 @@ const PostModal = ({
                   onClick={onEditComments}
                   className="text-[10px] font-bold text-brand-accent hover:text-white transition-colors"
                  >
-                   EDIT COMMENTS
+                   댓글 편집
                  </button>
                )}
                <MoreHorizontal size={18} className="text-zinc-400" />
@@ -997,13 +1034,13 @@ const PostModal = ({
                        </div>
                     </div>
                     <div className="flex gap-2 mt-2 text-[10px] font-bold">
-                      <button onClick={handleSaveCaption} className="text-brand-accent uppercase">Save</button>
-                      <button onClick={() => setIsEditingCaption(false)} className="text-zinc-500 uppercase">Cancel</button>
+                      <button onClick={handleSaveCaption} className="text-brand-accent uppercase">저장</button>
+                      <button onClick={() => setIsEditingCaption(false)} className="text-zinc-500 uppercase">취소</button>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm whitespace-pre-wrap text-[#f0f0f0] leading-snug">
+                    <p className="text-sm whitespace-pre-wrap text-[#cdcdcd] leading-snug">
                       <span className="font-bold mr-2 text-white inline-flex items-center gap-0.5 cursor-pointer">
                         {profile.username}
                         {profile.username.endsWith(".official") && (
@@ -1015,7 +1052,7 @@ const PostModal = ({
                     <div className="flex items-center gap-4 mt-2 text-xs text-brand-muted font-semibold">
                        <span>{post.time}</span>
                        {isAdmin && (
-                         <button onClick={() => setIsEditingCaption(true)} className="hover:text-white transition-colors">Edit</button>
+                         <button onClick={() => setIsEditingCaption(true)} className="hover:text-white transition-colors">편집</button>
                        )}
                     </div>
                   </>
@@ -1065,7 +1102,7 @@ const PostModal = ({
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm whitespace-pre-wrap text-[#f0f0f0] leading-snug">
+                      <p className="text-sm whitespace-pre-wrap text-[#cdcdcd] leading-snug">
                         <span className="font-bold mr-2 text-white inline-flex items-center gap-0.5 cursor-pointer">
                           {comment.user}
                           {comment.user.endsWith(".official") && (
@@ -1076,8 +1113,8 @@ const PostModal = ({
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-brand-muted font-semibold">
                         <span>{comment.time}</span>
-                        <span>{comment.likes} likes</span>
-                        <button className="hover:text-zinc-300">Reply</button>
+                        <span>좋아요 {comment.likes}개</span>
+                        <button className="hover:text-zinc-300">답글 달기</button>
                         {(comment.user === profile.username || isAdmin) && (
                           <div className="flex gap-4">
                             <button 
@@ -1128,7 +1165,7 @@ const PostModal = ({
               </div>
               <Bookmark size={24} />
             </div>
-            <p className="font-bold text-sm mb-1">{(isLiked ? post.likes + 1 : post.likes).toLocaleString()} likes</p>
+            <p className="font-bold text-sm mb-1">좋아요 {(isLiked ? post.likes + 1 : post.likes).toLocaleString()}개</p>
             <p className="text-[10px] uppercase text-brand-muted tracking-wide">May 5, 2026</p>
           </div>
 
@@ -1136,7 +1173,7 @@ const PostModal = ({
           <div className="p-4 border-t border-zinc-800 flex items-start gap-3">
             <Smile size={24} className="text-zinc-400 mt-1 shrink-0" />
             <textarea 
-              placeholder="Add a comment..." 
+              placeholder="댓글 달기..." 
               className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-zinc-500 resize-none max-h-32 py-1 text-[#f0f0f0]"
               rows={1}
               value={newCommentText}
@@ -1315,7 +1352,7 @@ const DMOverlay = ({
             </div>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2 scrollbar-hide">
-            <h3 className="px-3 pb-4 font-bold text-sm tracking-tight text-white/50">Messages</h3>
+            <h3 className="px-3 pb-4 font-bold text-sm tracking-tight text-white/50">메시지</h3>
             {chats.map(user => (
               <div 
                 key={user.id} 
@@ -1386,8 +1423,8 @@ const DMOverlay = ({
                 {isAdmin && (
                   editingChatId === selectedUser.id ? (
                     <div className="flex gap-2">
-                       <button onClick={() => tempChat && handleUpdateChat(tempChat)} className="text-[10px] font-bold text-brand-accent uppercase">Save</button>
-                       <button onClick={() => setEditingChatId(null)} className="text-[10px] font-bold text-zinc-500 uppercase">Cancel</button>
+                       <button onClick={() => tempChat && handleUpdateChat(tempChat)} className="text-[10px] font-bold text-brand-accent uppercase">저장</button>
+                       <button onClick={() => setEditingChatId(null)} className="text-[10px] font-bold text-zinc-500 uppercase">취소</button>
                     </div>
                   ) : (
                     <button 
@@ -1397,7 +1434,7 @@ const DMOverlay = ({
                       }} 
                       className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase"
                     >
-                      Edit Partner
+                      대화 상대 편집
                     </button>
                   )
                 )}
@@ -1431,7 +1468,7 @@ const DMOverlay = ({
                   ) : (
                     <p className="text-brand-muted text-sm mb-4">{selectedUser.subtitle}</p>
                   )}
-                  <button className="px-4 py-1.5 bg-zinc-800 rounded-lg text-sm font-semibold hover:bg-zinc-700 transition-colors mt-4">View Profile</button>
+                  <button className="px-4 py-1.5 bg-zinc-800 rounded-lg text-sm font-semibold hover:bg-zinc-700 transition-colors mt-4">프로필 보기</button>
                 </div>
               </div>
 
@@ -1457,8 +1494,8 @@ const DMOverlay = ({
                             onChange={e => setTempMessage(prev => prev ? {...prev, time: e.target.value} : null)}
                           />
                           <div className="flex gap-2">
-                            <button onClick={() => tempMessage && handleUpdateMessage(tempMessage)} className="text-[10px] font-bold text-brand-accent uppercase">OK</button>
-                            <button onClick={() => setEditingMessageId(null)} className="text-[10px] font-bold text-zinc-500 uppercase">X</button>
+                            <button onClick={() => tempMessage && handleUpdateMessage(tempMessage)} className="text-[10px] font-bold text-brand-accent uppercase">저장</button>
+                            <button onClick={() => setEditingMessageId(null)} className="text-[10px] font-bold text-zinc-500 uppercase">취소</button>
                           </div>
                        </div>
                      ) : (
@@ -1487,19 +1524,19 @@ const DMOverlay = ({
                           }}
                           className="text-[9px] font-bold text-zinc-500 hover:text-white p-1 whitespace-nowrap bg-black/50 rounded"
                          >
-                           EDIT
+                           편집
                          </button>
                          <button 
                           onClick={() => handleDeleteMessage(msg.id)}
                           className="text-[9px] font-bold text-red-500/70 hover:text-red-500 p-1 whitespace-nowrap bg-black/50 rounded"
                          >
-                           DEL
+                           삭제
                          </button>
                          <button 
                           onClick={() => setForwardingMessage(msg)}
                           className="text-[9px] font-bold text-brand-accent hover:text-white p-1 whitespace-nowrap bg-black/50 rounded"
                          >
-                           FWD
+                           전달
                          </button>
                        </div>
                      )}
@@ -1523,7 +1560,7 @@ const DMOverlay = ({
                 <Smile size={24} className="text-zinc-400 cursor-pointer" />
                 <input 
                   type="text" 
-                  placeholder={senderType === 'me' ? "Message..." : `Message as ${selectedUser.name}...`}
+                  placeholder={senderType === 'me' ? "메시지 보내기..." : `${selectedUser.name}님에게 메시지 보내기...`}
                   className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-zinc-500 text-white py-2"
                   value={newMessageText}
                   onChange={e => setNewMessageText(e.target.value)}
@@ -1534,7 +1571,7 @@ const DMOverlay = ({
                   className="text-brand-accent font-bold text-sm px-2 disabled:opacity-50"
                   disabled={!newMessageText.trim()}
                 >
-                  Send
+                  보내기
                 </button>
               </div>
            </div>
@@ -1545,7 +1582,7 @@ const DMOverlay = ({
             <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/80" onClick={() => setForwardingMessage(null)} />
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-                <h3 className="text-lg font-bold mb-4">Forward To</h3>
+                <h3 className="text-lg font-bold mb-4">전달하기</h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {chats.filter(c => c.id !== selectedUserId).map(c => (
                     <button 
@@ -1562,7 +1599,7 @@ const DMOverlay = ({
                   onClick={() => setForwardingMessage(null)}
                   className="w-full mt-6 bg-zinc-800 py-2 rounded-lg text-sm font-bold text-zinc-400 hover:text-white transition-colors"
                 >
-                  Cancel
+                  취소
                 </button>
               </motion.div>
             </div>
@@ -1608,12 +1645,12 @@ const DMOverlay = ({
                   )}
                   <input 
                     type="text" 
-                    placeholder={senderType === 'me' ? "Message..." : `Message as ${selectedUser.name}...`}
+                    placeholder={senderType === 'me' ? "메시지 보내기..." : `${selectedUser.name}님에게 메시지 보내기...`}
                     className="flex-1 bg-transparent border-none outline-none text-sm py-2"
                     value={newMessageText}
                     onChange={e => setNewMessageText(e.target.value)}
                   />
-                  <button onClick={handleSendMessage} className="text-brand-accent font-bold text-sm">Send</button>
+                  <button onClick={handleSendMessage} className="text-brand-accent font-bold text-sm">보내기</button>
                 </div>
               </div>
            </div>
@@ -1653,6 +1690,20 @@ export default function App() {
 
   // Firebase Real-time listeners
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
+
+  useEffect(() => {
+    // Apply font family globally via CSS variable
+    const root = document.documentElement;
+    if (profile.fontFamily === 'instagram') {
+      root.style.setProperty('--app-font', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif');
+    } else if (profile.fontFamily === 'sans') {
+      root.style.setProperty('--app-font', '"Inter", ui-sans-serif, system-ui, sans-serif');
+    } else if (profile.fontFamily === 'serif') {
+      root.style.setProperty('--app-font', 'serif');
+    } else {
+      root.style.setProperty('--app-font', '"NanumBarunGothic", sans-serif');
+    }
+  }, [profile.fontFamily]);
   const [posts, setPosts] = useState<Post[]>(DEFAULT_POSTS);
   const [chats, setChats] = useState<ChatUser[]>(DEFAULT_CHATS);
   const [highlights, setHighlights] = useState<Highlight[]>(DEFAULT_HIGHLIGHTS);
