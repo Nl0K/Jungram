@@ -84,8 +84,12 @@ service cloud.firestore {
 
     // Rules for each collection
     match /profiles/{profileId} {
-      allow read: if true; 
-      allow write: if isAdmin() && isValidId(profileId) && isValidProfile(incoming());
+      allow read: if true;
+      allow create, delete: if isAdmin() && isValidId(profileId) && isValidProfile(incoming());
+      allow update: if isValidId(profileId) && isValidProfile(incoming()) && (
+        isAdmin() || 
+        incoming().diff(existing()).affectedKeys().hasOnly(['followersCount'])
+      );
     }
 
     match /posts/{postId} {
