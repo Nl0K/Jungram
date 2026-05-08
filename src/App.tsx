@@ -1143,7 +1143,7 @@ const PostModal = ({
                         <span>{comment.time}</span>
                         <span>좋아요 {comment.likes}개</span>
                         <button className="hover:text-zinc-300">답글 달기</button>
-                        {(comment.user === profile.username || isAdmin) && (
+                        {isAdmin && (
                           <div className="flex gap-4">
                             <button 
                               onClick={() => {
@@ -1444,11 +1444,17 @@ const DMOverlay = ({
                       value={tempChat?.name || ""}
                       onChange={e => setTempChat(prev => prev ? {...prev, name: e.target.value} : null)}
                    />
-                   <input 
-                      className="bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5 text-[10px] outline-none focus:border-brand-accent text-zinc-400"
-                      value={tempChat?.status || ""}
-                      onChange={e => setTempChat(prev => prev ? {...prev, status: e.target.value} : null)}
-                   />
+                   <div className="flex gap-2 items-center">
+                      <input 
+                         className="bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5 text-[10px] outline-none focus:border-brand-accent text-zinc-400 flex-1"
+                         value={tempChat?.status || ""}
+                         onChange={e => setTempChat(prev => prev ? {...prev, status: e.target.value} : null)}
+                      />
+                      <label className="flex items-center gap-1 text-[10px] text-zinc-400 cursor-pointer pt-1">
+                        <input type="checkbox" checked={tempChat?.isOnline || false} onChange={e => setTempChat(prev => prev ? {...prev, isOnline: e.target.checked} : null)} className="accent-brand-accent h-3 w-3" />
+                        <span>활동중</span>
+                      </label>
+                   </div>
                  </div>
                ) : (
                  <div className="text-left">
@@ -1739,8 +1745,8 @@ const LockScreen = ({ onUnlock, isReady }: { onUnlock: () => void, isReady: bool
       animate={{ opacity: 1 }}
       exit={{ y: "-100%", opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} 
-      className="fixed inset-0 z-[9999] bg-black bg-cover bg-center flex flex-col items-center justify-between py-16 cursor-pointer"
-      style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1621077699745-0d051fc4ba7a?q=80&w=2564&auto=format&fit=crop")' }}
+      className="fixed inset-0 z-[9999] bg-black bg-no-repeat bg-center flex flex-col items-center justify-between py-16 cursor-pointer"
+      style={{ backgroundImage: 'url("/lock_bg.png")', backgroundSize: 'contain' }}
       onClick={() => {
         if (isReady) onUnlock();
       }}
