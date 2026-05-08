@@ -268,16 +268,59 @@ const EditModal = ({
           )}
 
           {type === "posts" && formData.map((post: Post, idx: number) => (
-            <div key={post.id} className="flex gap-4 items-center p-3 bg-black rounded-lg border border-zinc-800">
-              <img src={post.img || null} className="w-12 h-12 rounded object-cover" alt="prev" />
-              <div className="flex-1">
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Post {idx + 1} Image URL</label>
-                <input 
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-xs focus:border-brand-accent outline-none"
-                  value={post.img}
+            <div key={post.id} className="space-y-4 p-4 bg-black rounded-xl border border-zinc-800">
+              <div className="flex gap-4 items-center">
+                <img src={post.img || null} className="w-16 h-16 rounded-lg object-cover shadow-lg shrink-0" alt="prev" />
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Image URL</label>
+                    <input 
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
+                      value={post.img}
+                      onChange={e => {
+                        const newPosts = [...formData];
+                        newPosts[idx].img = e.target.value;
+                        setFormData(newPosts);
+                      }}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Likes Count</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
+                        value={post.likes}
+                        onChange={e => {
+                          const newPosts = [...formData];
+                          newPosts[idx].likes = parseInt(e.target.value) || 0;
+                          setFormData(newPosts);
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Time (e.g. 4h, 1d)</label>
+                      <input 
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
+                        value={post.time}
+                        onChange={e => {
+                          const newPosts = [...formData];
+                          newPosts[idx].time = e.target.value;
+                          setFormData(newPosts);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Caption</label>
+                <textarea 
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white h-20 resize-none"
+                  value={post.caption}
                   onChange={e => {
                     const newPosts = [...formData];
-                    newPosts[idx].img = e.target.value;
+                    newPosts[idx].caption = e.target.value;
                     setFormData(newPosts);
                   }}
                 />
@@ -319,43 +362,76 @@ const EditModal = ({
 
           {type === "comments" && formData.map((comment: Comment, idx: number) => (
             <div key={comment.id} className="space-y-3 p-4 bg-black rounded-xl border border-zinc-800">
-               <div className="flex gap-4 items-center">
-                  <div className="w-10 h-10 rounded-full border border-zinc-700 overflow-hidden shrink-0">
+               <div className="flex gap-4 items-start">
+                  <div className="w-10 h-10 rounded-full border border-zinc-700 overflow-hidden shrink-0 mt-1">
                     <img src={comment.avatar || null} className="w-full h-full object-cover" alt="avatar" />
                   </div>
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-3">
                     <div className="flex gap-2">
-                       <input 
-                        placeholder="User name"
-                        className="w-1/2 bg-zinc-900 border border-zinc-800 rounded p-1.5 text-xs focus:border-brand-accent outline-none font-bold"
-                        value={comment.user}
+                       <div className="flex-1">
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Username</label>
+                          <input 
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-xs focus:border-brand-accent outline-none font-bold text-white"
+                            value={comment.user}
+                            onChange={e => {
+                              const newComments = [...formData];
+                              newComments[idx].user = e.target.value;
+                              setFormData(newComments);
+                            }}
+                          />
+                       </div>
+                       <div className="flex-1">
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Avatar URL</label>
+                          <input 
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-[10px] focus:border-brand-accent outline-none text-zinc-400"
+                            value={comment.avatar || ""}
+                            onChange={e => {
+                              const newComments = [...formData];
+                              newComments[idx].avatar = e.target.value;
+                              setFormData(newComments);
+                            }}
+                          />
+                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Comment Text</label>
+                      <textarea 
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-xs focus:border-brand-accent outline-none min-h-[50px] text-[#f0f0f0] resize-none"
+                        value={comment.text}
                         onChange={e => {
                           const newComments = [...formData];
-                          newComments[idx].user = e.target.value;
-                          setFormData(newComments);
-                        }}
-                      />
-                      <input 
-                        placeholder="Avatar URL"
-                        className="w-1/2 bg-zinc-900 border border-zinc-800 rounded p-1.5 text-[10px] focus:border-brand-accent outline-none"
-                        value={comment.avatar || ""}
-                        onChange={e => {
-                          const newComments = [...formData];
-                          newComments[idx].avatar = e.target.value;
+                          newComments[idx].text = e.target.value;
                           setFormData(newComments);
                         }}
                       />
                     </div>
-                    <textarea 
-                      placeholder="Comment text"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-xs focus:border-brand-accent outline-none min-h-[50px] text-[#f0f0f0]"
-                      value={comment.text}
-                      onChange={e => {
-                        const newComments = [...formData];
-                        newComments[idx].text = e.target.value;
-                        setFormData(newComments);
-                      }}
-                    />
+                    <div className="flex gap-2">
+                       <div className="flex-1">
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Likes</label>
+                          <input 
+                            type="number"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-xs focus:border-brand-accent outline-none text-white"
+                            value={comment.likes}
+                            onChange={e => {
+                              const newComments = [...formData];
+                              newComments[idx].likes = parseInt(e.target.value) || 0;
+                              setFormData(newComments);
+                            }}
+                          />
+                       </div>
+                       <div className="flex-1">
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Time</label>
+                          <input 
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-xs focus:border-brand-accent outline-none text-white"
+                            value={comment.time}
+                            onChange={e => {
+                              const newComments = [...formData];
+                              newComments[idx].time = e.target.value;
+                              setFormData(newComments);
+                            }}
+                          />
+                       </div>
+                    </div>
                   </div>
                </div>
             </div>
@@ -718,9 +794,9 @@ const PostModal = ({
   onClose: () => void,
   onEditComments: () => void,
   onAddComment: (postId: number, text: string) => void,
-  onUpdateComment: (postId: number, commentId: number, text: string, time: string) => void,
+  onUpdateComment: (postId: number, commentId: number, text: string, time: string, likes: number) => void,
   onDeleteComment: (postId: number, commentId: number) => void,
-  onUpdateCaption: (postId: number, text: string, time: string) => void
+  onUpdateCaption: (postId: number, text: string, time: string, likes: number) => void
 }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [comments, setComments] = useState<Comment[]>(Array.isArray(post.comments) ? post.comments : []);
@@ -728,15 +804,18 @@ const PostModal = ({
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [editingTime, setEditingTime] = useState("");
+  const [editingLikes, setEditingLikes] = useState(0);
   const [isEditingCaption, setIsEditingCaption] = useState(false);
   const [captionText, setCaptionText] = useState(post.caption);
   const [captionTime, setCaptionTime] = useState(post.time);
+  const [captionLikes, setCaptionLikes] = useState(post.likes);
 
   useEffect(() => {
     setComments(Array.isArray(post.comments) ? post.comments : []);
     setCaptionText(post.caption);
     setCaptionTime(post.time);
-  }, [post.comments, post.caption, post.time]);
+    setCaptionLikes(post.likes);
+  }, [post.comments, post.caption, post.time, post.likes]);
 
   const handlePostComment = () => {
     if (!newCommentText.trim()) return;
@@ -746,12 +825,12 @@ const PostModal = ({
 
   const handleSaveEdit = (commentId: number) => {
     if (!editingText.trim()) return;
-    onUpdateComment(post.id, commentId, editingText, editingTime);
+    onUpdateComment(post.id, commentId, editingText, editingTime, editingLikes);
     setEditingCommentId(null);
   };
 
   const handleSaveCaption = () => {
-    onUpdateCaption(post.id, captionText, captionTime);
+    onUpdateCaption(post.id, captionText, captionTime, captionLikes);
     setIsEditingCaption(false);
   };
 
@@ -828,21 +907,40 @@ const PostModal = ({
               <div className="flex-1">
                 {isEditingCaption ? (
                   <div className="space-y-2">
-                    <textarea 
-                      autoFocus
-                      value={captionText}
-                      onChange={(e) => setCaptionText(e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm focus:border-brand-accent outline-none text-white"
-                      placeholder="Caption"
-                    />
-                    <input 
-                      type="text"
-                      value={captionTime}
-                      onChange={(e) => setCaptionTime(e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-zinc-400"
-                      placeholder="Post time (e.g., 2h, 1d, 3w)"
-                    />
-                    <div className="flex gap-2 text-[10px] font-bold">
+                    <div className="flex gap-2">
+                       <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Caption</label>
+                          <textarea 
+                            autoFocus
+                            value={captionText}
+                            onChange={(e) => setCaptionText(e.target.value)}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm focus:border-brand-accent outline-none text-white h-20 resize-none"
+                            placeholder="Caption"
+                          />
+                       </div>
+                    </div>
+                    <div className="flex gap-3 mt-2">
+                       <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Time</label>
+                          <input 
+                            type="text"
+                            value={captionTime}
+                            onChange={(e) => setCaptionTime(e.target.value)}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-zinc-400"
+                            placeholder="Post time (e.g., 2h, 1d, 3w)"
+                          />
+                       </div>
+                       <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Likes Count</label>
+                          <input 
+                            type="number"
+                            value={captionLikes}
+                            onChange={(e) => setCaptionLikes(parseInt(e.target.value) || 0)}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
+                          />
+                       </div>
+                    </div>
+                    <div className="flex gap-2 mt-2 text-[10px] font-bold">
                       <button onClick={handleSaveCaption} className="text-brand-accent uppercase">Save</button>
                       <button onClick={() => setIsEditingCaption(false)} className="text-zinc-500 uppercase">Cancel</button>
                     </div>
@@ -877,20 +975,33 @@ const PostModal = ({
                 <div className="flex-1 text-zinc-100">
                   {editingCommentId === comment.id ? (
                     <div className="space-y-2">
-                       <textarea 
+                      <textarea 
                         autoFocus
                         value={editingText}
                         onChange={(e) => setEditingText(e.target.value)}
                         className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm focus:border-brand-accent outline-none text-[#f0f0f0]"
                         placeholder="Comment"
                       />
-                      <input 
-                        type="text"
-                        value={editingTime}
-                        onChange={(e) => setEditingTime(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-zinc-400"
-                        placeholder="Comment time"
-                      />
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <input 
+                            type="text"
+                            value={editingTime}
+                            onChange={(e) => setEditingTime(e.target.value)}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-zinc-400"
+                            placeholder="Comment time"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input 
+                            type="number"
+                            value={editingLikes}
+                            onChange={(e) => setEditingLikes(parseInt(e.target.value) || 0)}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs focus:border-brand-accent outline-none text-white"
+                            placeholder="Likes"
+                          />
+                        </div>
+                      </div>
                       <div className="flex gap-2 text-[10px] font-bold">
                         <button onClick={() => handleSaveEdit(comment.id)} className="text-brand-accent uppercase">Save</button>
                         <button onClick={() => setEditingCommentId(null)} className="text-zinc-500 uppercase">Cancel</button>
@@ -918,6 +1029,7 @@ const PostModal = ({
                                 setEditingCommentId(comment.id);
                                 setEditingText(comment.text);
                                 setEditingTime(comment.time);
+                                setEditingLikes(comment.likes);
                               }}
                               className="hover:text-white transition-colors"
                             >
@@ -1559,13 +1671,13 @@ export default function App() {
     }
   };
 
-  const handleUpdateComment = (postId: number, commentId: number, text: string, time: string) => {
+  const handleUpdateComment = (postId: number, commentId: number, text: string, time: string, likes: number) => {
     const newPosts = posts.map(p => {
       if (p.id === postId) {
         return {
           ...p,
           comments: p.comments.map(c => 
-            c.id === commentId ? { ...c, text: text, time: time } : c
+            c.id === commentId ? { ...c, text: text, time: time, likes: likes } : c
           )
         };
       }
@@ -1577,7 +1689,7 @@ export default function App() {
       setSelectedPost({
         ...selectedPost,
         comments: selectedPost.comments.map(c => 
-          c.id === commentId ? { ...c, text: text, time: time } : c
+          c.id === commentId ? { ...c, text: text, time: time, likes: likes } : c
         )
       });
     }
@@ -1605,13 +1717,13 @@ export default function App() {
     }
   };
 
-  const handleUpdateCaption = (postId: number, text: string, time: string) => {
+  const handleUpdateCaption = (postId: number, text: string, time: string, likes: number) => {
     const newPosts = posts.map(p => 
-      p.id === postId ? { ...p, caption: text, time: time } : p
+      p.id === postId ? { ...p, caption: text, time: time, likes: likes } : p
     );
     setPosts(newPosts);
     if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost({ ...selectedPost, caption: text, time: time });
+      setSelectedPost({ ...selectedPost, caption: text, time: time, likes: likes });
     }
   };
 
